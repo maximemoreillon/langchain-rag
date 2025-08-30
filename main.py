@@ -1,47 +1,14 @@
-import bs4
-from langchain_community.document_loaders import WebBaseLoader
-from langchain import hub
-from langchain_community.document_loaders import WebBaseLoader
-from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langgraph.graph import START, StateGraph
 from typing_extensions import List, TypedDict
-from langchain_core.vectorstores import InMemoryVectorStore
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain import hub
+from langchain_core.documents import Document
+from langgraph.graph import START, StateGraph
+from langchain_openai import ChatOpenAI
+from ingestion import ingest, vector_store
 
+
+ingest()
 
 llm = ChatOpenAI(model="gpt-4o-mini")
-
-# Only keep post title, headers, and content from the full HTML.
-bs4_strainer = bs4.SoupStrainer()
-loader = WebBaseLoader(
-    web_paths=("https://articles.maximemoreillon.com/articles/277",),
-    bs_kwargs={"parse_only": bs4_strainer},
-)
-docs = loader.load()
-
-assert len(docs) == 1
-print(f"Total characters: {len(docs[0].page_content)}")
-
-
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-all_splits = text_splitter.split_documents(docs)
-
-print(f"Split blog post into {len(all_splits)} sub-documents.")
-
-
-embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
-vector_store = InMemoryVectorStore(embeddings)
-
-
-# Index chunks
-vector_store.add_documents(documents=all_splits)
-
-
-# Define prompt for question-answering
-# Prompt contains template among others
-prompt = hub.pull("rlm/rag-prompt")
-
 
 
 # Define state for application
@@ -58,15 +25,33 @@ def retrieve(state: State):
 
 
 def generate(state: State):
+
+    # Define prompt for question-answering
+    # Prompt contains template among others
+    prompt = hub.pull("rlm/rag-prompt")
+
     docs_content = "\n\n".join(doc.page_content for doc in state["context"])
     messages = prompt.invoke({"question": state["question"], "context": docs_content})
     response = llm.invoke(messages)
     return {"answer": response.content}
 
 
-graph_builder = StateGraph(State).add_sequence([retrieve, generate])
-graph_builder.add_edge(START, "retrieve")
-graph = graph_builder.compile()
+def makeGraph():
 
-response = graph.invoke({"question": "What command can I use to create a partition in a disk?"})
-print(response["answer"])
+    graph_builder = StateGraph(State).add_sequence([retrieve, generate])
+
+    # Make the "retrieve" edge the start point
+    graph_builder.add_edge(START, "retrieve")
+
+    return graph_builder.compile()
+
+
+def main():
+    question = "What command can I use to create a partition in a disk?"
+    graph = makeGraph()
+    response = graph.invoke({"question": question})
+    print(response["answer"])
+
+
+if __name__ == "__main__":
+    main()
