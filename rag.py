@@ -1,14 +1,17 @@
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from typing_extensions import List, TypedDict
 from langchain import hub
 from langchain_core.documents import Document
 from langgraph.graph import START, StateGraph
 from langchain_openai import ChatOpenAI
-from ingestion import ingest, vector_store
-
-
-ingest()
+from inMemory.vectorStore import vector_store as inMemoryVectorStore
+from pineconeDb.vectorStore import vector_store as pineconeVectorStore
 
 llm = ChatOpenAI(model="gpt-4o-mini")
+vector_store = pineconeVectorStore
 
 
 # Define state for application
@@ -47,7 +50,7 @@ def makeGraph():
 
 
 def main():
-    question = "What command can I use to create a partition in a disk?"
+    question = "How is the stock market doing today?"
     graph = makeGraph()
     response = graph.invoke({"question": question})
     print(response["answer"])

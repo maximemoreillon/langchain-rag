@@ -2,5 +2,8 @@ langchain-text-splitters
 langchain-community
 langchain-core
 langchain-openai
+langchain-pinecone
 langgraph
 bs4
+python-dotenv
+pinecone
