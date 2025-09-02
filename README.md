@@ -1,3 +1,7 @@
 # LangChain RAG
 
-Basically following https://python.langchain.com/docs/tutorials/rag/
+Using both in-memory and Pinecone storage
+
+## References
+
+- https://python.langchain.com/docs/tutorials/rag/
